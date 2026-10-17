@@ -1,5 +1,5 @@
 import { TokenService } from '../../src/auth/tokenService';
-import { User } from '../../src/domain/types';
+import { Role, User } from '../../src/domain/types';
 import { NotFoundError, ValidationError } from '../../src/errors';
 import { DistrictRepository } from '../../src/repositories/districtRepository';
 import { UserRepository } from '../../src/repositories/userRepository';
@@ -84,6 +84,18 @@ describe('AccountService.changeRole', () => {
     const result = accounts.changeRole(11, 'ADMIN');
 
     await expect(result).rejects.toThrow(ValidationError);
+    expect(users.updateRole).not.toHaveBeenCalled();
+  });
+
+  // role มาจาก request body จึงอาจเป็นค่าอะไรก็ได้ ไม่ใช่แค่ค่าที่ TypeScript อนุญาต
+  it.each(['SUPERUSER', 'voter', ''])('rejects a role that does not exist ("%s") without saving it', async (role) => {
+    // updateRole = mock: ค่าที่ไม่ถูกต้องต้องถูกหยุดก่อนถึง repository
+    const users = usersWhereUpdateRole(async (id, newRole) => ({ ...somchai, id, role: newRole }));
+    const accounts = new AccountService(users, dummyDistricts, dummyTokens);
+
+    const result = accounts.changeRole(11, role as Role);
+
+    await expect(result).rejects.toThrow(new ValidationError('role must be VOTER or COMMISSIONER'));
     expect(users.updateRole).not.toHaveBeenCalled();
   });
 });

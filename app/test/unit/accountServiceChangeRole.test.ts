@@ -1,5 +1,6 @@
 import { TokenService } from '../../src/auth/tokenService';
 import { User } from '../../src/domain/types';
+import { NotFoundError } from '../../src/errors';
 import { DistrictRepository } from '../../src/repositories/districtRepository';
 import { UserRepository } from '../../src/repositories/userRepository';
 import { AccountService } from '../../src/services/accountService';
@@ -63,5 +64,15 @@ describe('AccountService.changeRole', () => {
       districtId: 'CM-1',
       role: 'COMMISSIONER',
     });
+  });
+
+  it('reports a user that does not exist as not found', async () => {
+    // updateRole = stub คืน null เพื่อสร้างสถานการณ์ "ไม่มี user id นี้" โดยไม่ต้องมี DB
+    const users = usersWhereUpdateRole(async () => null);
+    const accounts = new AccountService(users, dummyDistricts, dummyTokens);
+
+    const result = accounts.changeRole(999, 'COMMISSIONER');
+
+    await expect(result).rejects.toThrow(new NotFoundError('user not found'));
   });
 });

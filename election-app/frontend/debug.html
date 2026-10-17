@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug API Response</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #4ec9b0;
+        }
+        .test-section {
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .test-section h2 {
+            color: #dcdcaa;
+            margin-top: 0;
+        }
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #1177bb;
+        }
+        pre {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 15px;
+            overflow-x: auto;
+            color: #ce9178;
+        }
+        .success {
+            color: #4ec9b0;
+        }
+        .error {
+            color: #f48771;
+        }
+        input, select {
+            padding: 8px;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            background: #3c3c3c;
+            color: #d4d4d4;
+            margin: 5px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug API Response Format</h1>
+        <p>ตรวจสอบ Response Format จาก Production API</p>
+
+        <!-- Test 1: Provinces -->
+        <div class="test-section">
+            <h2>1. Test Provinces API</h2>
+            <button onclick="testProvinces()">Test GET /auth/provinces</button>
+            <pre id="provinces-result">คลิกปุ่มเพื่อทดสอบ...</pre>
+        </div>
+
+        <!-- Test 2: Districts -->
+        <div class="test-section">
+            <h2>2. Test Districts API</h2>
+            <select id="province-select" onchange="testDistricts()">
+                <option value="">เลือกจังหวัด...</option>
+            </select>
+            <button onclick="testDistricts()">Test GET /auth/districts/:province</button>
+            <pre id="districts-result">เลือกจังหวัดเพื่อทดสอบ...</pre>
+        </div>
+
+        <!-- Test 3: Subdistricts -->
+        <div class="test-section">
+            <h2>3. Test Subdistricts API</h2>
+            <input type="text" id="province-input" placeholder="จังหวัด" value="กรุงเทพมหานคร">
+            <input type="text" id="district-input" placeholder="อำเภอ" value="บางรัก">
+            <button onclick="testSubdistricts()">Test GET /auth/subdistricts/:district</button>
+            <pre id="subdistricts-result">คลิกปุ่มเพื่อทดสอบ...</pre>
+        </div>
+
+        <!-- Test 4: Constituency -->
+        <div class="test-section">
+            <h2>4. Test Constituency Number API</h2>
+            <input type="text" id="cons-province" placeholder="จังหวัด" value="กรุงเทพมหานคร">
+            <input type="text" id="cons-district" placeholder="อำเภอ" value="บางรัก">
+            <input type="text" id="cons-subdistrict" placeholder="ตำบล" value="บางรัก">
+            <button onclick="testConstituency()">Test GET /auth/constituencynumbers/:subdistrict</button>
+            <pre id="constituency-result">คลิกปุ่มเพื่อทดสอบ...</pre>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://online-election-project.onrender.com';
+
+        async function apiCall(endpoint) {
+            const url = `${API_BASE_URL}${endpoint}`;
+            console.log('Calling:', url);
+            
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                return {
+                    success: true,
+                    status: response.status,
+                    data: data,
+                    dataType: Array.isArray(data.data) ? 
+                        (data.data.length > 0 ? 
+                            (typeof data.data[0] === 'string' ? 'Array<string>' : 'Array<object>') 
+                            : 'Array (empty)') 
+                        : typeof data.data
+                };
+            } catch (error) {
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        }
+
+        function displayResult(elementId, result) {
+            const element = document.getElementById(elementId);
+            if (result.success) {
+                element.innerHTML = `<span class="success">✅ Success!</span>
+
+<strong>Status:</strong> ${result.status}
+<strong>Data Type:</strong> ${result.dataType}
+
+<strong>Full Response:</strong>
+${JSON.stringify(result.data, null, 2)}`;
+            } else {
+                element.innerHTML = `<span class="error">❌ Error!</span>
+
+${result.error}`;
+            }
+        }
+
+        async function testProvinces() {
+            const result = await apiCall('/auth/provinces');
+            displayResult('provinces-result', result);
+            
+            // Populate province select
+            if (result.success && result.data.data) {
+                const select = document.getElementById('province-select');
+                select.innerHTML = '<option value="">เลือกจังหวัด...</option>';
+                result.data.data.forEach(province => {
+                    const option = document.createElement('option');
+                    option.value = province;
+                    option.textContent = province;
+                    select.appendChild(option);
+                });
+            }
+        }
+
+        async function testDistricts() {
+            const province = document.getElementById('province-select').value;
+            if (!province) {
+                alert('กรุณาเลือกจังหวัดก่อน');
+                return;
+            }
+            
+            const result = await apiCall(`/auth/districts/${encodeURIComponent(province)}`);
+            displayResult('districts-result', result);
+        }
+
+        async function testSubdistricts() {
+            const province = document.getElementById('province-input').value;
+            const district = document.getElementById('district-input').value;
+            
+            if (!province || !district) {
+                alert('กรุณากรอกจังหวัดและอำเภอ');
+                return;
+            }
+            
+            const result = await apiCall(
+                `/auth/subdistricts/${encodeURIComponent(district)}?province=${encodeURIComponent(province)}`
+            );
+            displayResult('subdistricts-result', result);
+        }
+
+        async function testConstituency() {
+            const province = document.getElementById('cons-province').value;
+            const district = document.getElementById('cons-district').value;
+            const subdistrict = document.getElementById('cons-subdistrict').value;
+            
+            if (!province || !district || !subdistrict) {
+                alert('กรุณากรอกจังหวัด อำเภอ และตำบล');
+                return;
+            }
+            
+            const result = await apiCall(
+                `/auth/constituencynumbers/${encodeURIComponent(subdistrict)}?province=${encodeURIComponent(province)}&district=${encodeURIComponent(district)}`
+            );
+            displayResult('constituency-result', result);
+        }
+
+        // Auto-load provinces on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            testProvinces();
+        });
+    </script>
+</body>
+</html>

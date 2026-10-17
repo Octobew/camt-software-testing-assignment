@@ -1,0 +1,180 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RoleName {
+  ROLE_ADMIN
+  ROLE_VOTER
+  ROLE_ECT
+}
+
+model electionsetting {
+  id           Int      @id @default(autoincrement())
+  electionname String
+  startdate    DateTime
+  enddate      DateTime
+  starttime    String
+  endtime      String
+  isopen       Boolean  @default(true)
+  updatedAt    DateTime @updatedAt
+}
+
+model users {
+  id            Int      @id @unique @default(autoincrement())
+  nationalId    String   @unique
+  firstname     String
+  lastname      String
+  password      String
+  imageurl      String?
+  address       String
+  subdistrict   String
+  district      String
+  province      String
+  consituencyID Int
+  isactive      Boolean  @default(true)
+  updatedAt     DateTime @updatedAt
+
+  role        role[]
+  consituency consituency @relation(fields: [consituencyID], references: [id])
+  vote        vote[]
+}
+
+model role {
+  id       Int      @id @default(autoincrement())
+  usersId  Int
+  roleName RoleName
+
+  user users @relation(fields: [usersId], references: [id])
+
+  @@unique([usersId, roleName])
+}
+
+model consituency {
+  id                Int      @id @default(autoincrement())
+  provinceCode      String
+  province          province @relation(fields: [provinceCode], references: [code])
+  districtCode      String
+  district          district @relation(fields: [districtCode], references: [code])
+  consituencynumber Int
+  zipcode           String
+  isclosed          Boolean  @default(false)
+
+  candidates   candidate[]
+  user         users[]
+  subdistricts consituencySubdistrict[]
+
+  @@unique([id])
+  @@unique([provinceCode, consituencynumber])
+  @@index([provinceCode, districtCode])
+}
+
+model party {
+  id       Int     @id @default(autoincrement())
+  name     String  @unique
+  color    String?
+  imageurl String?
+  policy   String?
+
+  candidates candidate[]
+}
+
+model candidate {
+  id                  Int      @id @default(autoincrement())
+  candidatenumber     Int
+  firstname           String
+  lastname            String
+  imageurl            String?
+  policy              String?
+  consituencyId       Int
+  consituencyprovince String
+  partyId             Int
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  consituency consituency @relation(fields: [consituencyId], references: [id])
+  party       party       @relation(fields: [partyId], references: [id])
+  vote        vote[]
+
+  @@unique([candidatenumber, consituencyId])
+  @@unique([partyId, consituencyId])
+}
+
+model vote {
+  id          Int      @id @default(autoincrement())
+  usersId     Int
+  candidateId Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  candidate candidate @relation(fields: [candidateId], references: [id])
+  user      users     @relation(fields: [usersId], references: [id])
+
+  @@unique([usersId])
+}
+
+model province {
+  code     String  @id
+  nameTh   String
+  nameEn   String?
+  isActive Boolean
+
+  districts     district[]
+  subdistricts  subdistrict[]
+  consituencies consituency[]
+
+  @@index([nameTh])
+}
+
+model district {
+  code     String  @id
+  nameTh   String
+  nameEn   String?
+  isActive Boolean @default(true)
+
+  provinceCode String
+  province     province @relation(fields: [provinceCode], references: [code], onDelete: Restrict)
+
+  subdistricts  subdistrict[]
+  consituencies consituency[]
+
+  @@unique([provinceCode, nameTh])
+  @@index([provinceCode])
+  @@index([nameTh])
+}
+
+model subdistrict {
+  code     String  @id
+  nameTh   String
+  nameEn   String?
+  zipcode  String?
+  isActive Boolean @default(true)
+
+  provinceCode String
+  districtCode String
+
+  province      province                 @relation(fields: [provinceCode], references: [code], onDelete: Restrict)
+  district      district                 @relation(fields: [districtCode], references: [code], onDelete: Restrict)
+  consituencies consituencySubdistrict[]
+
+  @@unique([districtCode, nameTh])
+  @@index([provinceCode, districtCode])
+  @@index([districtCode])
+  @@index([nameTh])
+}
+
+model consituencySubdistrict {
+  consituencyId   Int
+  subdistrictCode String
+
+  consituency consituency @relation(fields: [consituencyId], references: [id], onDelete: Cascade)
+  subdistrict subdistrict @relation(fields: [subdistrictCode], references: [code], onDelete: Restrict)
+
+  @@id([consituencyId, subdistrictCode])
+  @@unique([subdistrictCode])
+  @@index([consituencyId])
+}

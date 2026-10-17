@@ -25,9 +25,11 @@ export async function protect(req: Request, res: Response, next: NextFunction) {
         req.body.currentRole = userInfo.currentRole;
         next();
     }catch (error:unknown) {
-        if (error instanceof Error && error.name === "JWT_SECRET is not definded") {
+        // A missing JWT_SECRET is our misconfiguration; anything else (bad signature, expired, malformed) is the caller's token.
+        if (error instanceof Error && error.message.includes("JWT_SECRET")) {
             return res.status(500).json({message: "Internal server error" });
         }
+        return res.status(401).json({message: "Invalid or expired token" });
     }
 }
 
@@ -65,10 +67,13 @@ export async function checkRole_ect(req: Request, res: Response, next: NextFunct
 }
 
 export async function checkRole_voter(req: Request, res: Response, next: NextFunction) {
-    const user = req.body.user;
+    const user = req.body?.user;
+    if (!user) {
+        return res.status(401).json({ message: "You are not logged in! Please log in to get access" });
+    }
     const userRoles = user.role.map((r: any) => r.roleName);
 
-    if (user && userRoles.includes('ROLE_VOTER')) {  
+    if (userRoles.includes('ROLE_VOTER')) {
         next();
     } else {
         return res.status(403).json({ message: "กรุณาสลับสิทธิผู้ใช้งานเป็น ผู้มีสิทธิเลือกตั้ง" });

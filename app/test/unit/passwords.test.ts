@@ -20,30 +20,40 @@ describe('hashPassword', () => {
 });
 
 describe('verifyPassword', () => {
-  it('returns true for the password that was hashed', () => {
-    const stored = hashPassword('voter1234');
+  describe('when the password is correct', () => {
+    it('returns true', () => {
+      const stored = hashPassword('voter1234');
 
-    const matches = verifyPassword('voter1234', stored);
+      const matches = verifyPassword('voter1234', stored);
 
-    expect(matches).toBe(true);
+      expect(matches).toBe(true);
+    });
   });
 
-  it('returns false for a different password', () => {
-    const stored = hashPassword('voter1234');
+  describe('when the password is wrong', () => {
+    it.each([
+      ['one extra character', 'voter12345'],
+      ['different case', 'VOTER1234'],
+      ['empty', ''],
+    ])('returns false: %s', (_case, attempt) => {
+      const stored = hashPassword('voter1234');
 
-    const matches = verifyPassword('voter12345', stored);
+      const matches = verifyPassword(attempt, stored);
 
-    expect(matches).toBe(false);
+      expect(matches).toBe(false);
+    });
   });
 
-  it.each([
-    ['not a hash at all', 'garbage'],
-    ['empty', ''],
-    ['salt without hash', 'scrypt$onlysalt'],
-    ['another scheme', 'md5$salt$abcdef'],
-  ])('returns false, without throwing, when the stored hash is malformed: %s', (_case, stored) => {
-    const matches = verifyPassword('voter1234', stored);
+  describe('when the stored hash is malformed', () => {
+    it.each([
+      ['not a hash at all', 'garbage'],
+      ['empty', ''],
+      ['salt without hash', 'scrypt$onlysalt'],
+      ['another scheme', 'md5$salt$abcdef'],
+    ])('returns false without throwing: %s', (_case, stored) => {
+      const matches = verifyPassword('voter1234', stored);
 
-    expect(matches).toBe(false);
+      expect(matches).toBe(false);
+    });
   });
 });

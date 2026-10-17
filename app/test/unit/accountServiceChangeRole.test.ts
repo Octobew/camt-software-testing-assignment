@@ -1,6 +1,6 @@
 import { TokenService } from '../../src/auth/tokenService';
 import { User } from '../../src/domain/types';
-import { NotFoundError } from '../../src/errors';
+import { NotFoundError, ValidationError } from '../../src/errors';
 import { DistrictRepository } from '../../src/repositories/districtRepository';
 import { UserRepository } from '../../src/repositories/userRepository';
 import { AccountService } from '../../src/services/accountService';
@@ -74,5 +74,16 @@ describe('AccountService.changeRole', () => {
     const result = accounts.changeRole(999, 'COMMISSIONER');
 
     await expect(result).rejects.toThrow(new NotFoundError('user not found'));
+  });
+
+  it('refuses to make anyone an ADMIN and leaves the stored role untouched', async () => {
+    // updateRole = mock: ความคาดหวังคือ "ต้องไม่ถูกเรียกเลย" ถ้าถูกเรียก แปลว่า role ADMIN หลุดลง DB ได้
+    const users = usersWhereUpdateRole(async (id, role) => ({ ...somchai, id, role }));
+    const accounts = new AccountService(users, dummyDistricts, dummyTokens);
+
+    const result = accounts.changeRole(11, 'ADMIN');
+
+    await expect(result).rejects.toThrow(ValidationError);
+    expect(users.updateRole).not.toHaveBeenCalled();
   });
 });
